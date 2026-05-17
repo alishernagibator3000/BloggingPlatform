@@ -259,9 +259,3 @@ mvn test
 | `500 Internal Server Error` | Непредвиденная ошибка сервера |
 
 Централизованная обработка реализована в `GlobalExceptionHandler` (`@RestControllerAdvice`).
-
----
-
-## Лицензия
-
-Проект создан в учебных целях.
