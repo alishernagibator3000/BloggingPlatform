@@ -7,6 +7,7 @@ import com.microblog.entities.Role;
 import com.microblog.entities.User;
 import com.microblog.exceptions.AccessDeniedException;
 import com.microblog.exceptions.ResourceNotFoundException;
+import com.microblog.repositories.CommentRepository;
 import com.microblog.repositories.LikeRepository;
 import com.microblog.repositories.PostRepository;
 import com.microblog.repositories.SubscriptionRepository;
@@ -39,6 +40,9 @@ class PostServiceTest {
 
     @Mock
     private LikeRepository likeRepository;
+
+    @Mock
+    private CommentRepository commentRepository;
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -112,7 +116,9 @@ class PostServiceTest {
         // Act
         postService.deletePost(1L, testUser);
 
-        // Assert
+        // Assert — verify cascade cleanup before post deletion
+        verify(likeRepository, times(1)).deleteByPost(testPost);
+        verify(commentRepository, times(1)).deleteByPost(testPost);
         verify(postRepository, times(1)).delete(testPost);
     }
 
@@ -128,6 +134,8 @@ class PostServiceTest {
                 .hasMessage("You do not have permission to delete this post");
 
         verify(postRepository, never()).delete(any(Post.class));
+        verify(likeRepository, never()).deleteByPost(any(Post.class));
+        verify(commentRepository, never()).deleteByPost(any(Post.class));
     }
 
     @Test
@@ -150,6 +158,8 @@ class PostServiceTest {
         postService.deletePost(1L, manager);
 
         // Assert
+        verify(likeRepository, times(1)).deleteByPost(testPost);
+        verify(commentRepository, times(1)).deleteByPost(testPost);
         verify(postRepository, times(1)).delete(testPost);
     }
 
@@ -165,5 +175,7 @@ class PostServiceTest {
                 .hasMessageContaining("Post not found with id: 99");
 
         verify(postRepository, never()).delete(any(Post.class));
+        verify(likeRepository, never()).deleteByPost(any(Post.class));
+        verify(commentRepository, never()).deleteByPost(any(Post.class));
     }
 }

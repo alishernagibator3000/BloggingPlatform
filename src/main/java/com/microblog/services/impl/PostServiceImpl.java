@@ -8,6 +8,7 @@ import com.microblog.entities.Subscription;
 import com.microblog.entities.User;
 import com.microblog.exceptions.AccessDeniedException;
 import com.microblog.exceptions.ResourceNotFoundException;
+import com.microblog.repositories.CommentRepository;
 import com.microblog.repositories.LikeRepository;
 import com.microblog.repositories.PostRepository;
 import com.microblog.repositories.SubscriptionRepository;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +30,7 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final LikeRepository likeRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     @Transactional
@@ -51,15 +54,14 @@ public class PostServiceImpl implements PostService {
     public Page<PostResponse> getPersonalFeed(Pageable pageable, User currentUser) {
         List<Subscription> subscriptions = subscriptionRepository.findByFollower(currentUser);
 
-        List<User> followedUsers = subscriptions.stream()
+        List<User> feedUsers = new ArrayList<>(subscriptions.stream()
                 .map(Subscription::getFollowed)
-                .collect(Collectors.toList());
+                .toList());
 
-        if (followedUsers.isEmpty()) {
-            return Page.empty(pageable);
-        }
+        // Include the current user's own posts in the personal feed
+        feedUsers.add(currentUser);
 
-        return postRepository.findByUserInOrderByCreatedAtDesc(followedUsers, pageable)
+        return postRepository.findByUserInOrderByCreatedAtDesc(feedUsers, pageable)
                 .map(post -> mapToPostResponse(post, currentUser));
     }
 
@@ -76,6 +78,10 @@ public class PostServiceImpl implements PostService {
         if (!isAuthor && !isModerator) {
             throw new AccessDeniedException("You do not have permission to delete this post");
         }
+
+        // Remove related entities before deleting the post to avoid FK constraint violations
+        likeRepository.deleteByPost(post);
+        commentRepository.deleteByPost(post);
 
         postRepository.delete(post);
     }
